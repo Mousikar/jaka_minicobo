@@ -51,9 +51,12 @@ def feedPath(path,step,step_num):
     return fpath
 
 # 依据点云坐标得到z方向的坐标
-def ZdirectionPath(fpath,points,normals,scan_height,rapid_height):
+def ZdirectionPath(fpath,points,normals,scan_height,rapid_height,flag_curve):
     zpath=[]
     npath=[]
+    temp_npath_x=[]
+    temp_npath_y=[]
+    temp_npath_z=[]
     n=len(fpath)
     # 初始点
     zpath.append([fpath[0][0],fpath[0][1],rapid_height])
@@ -67,7 +70,20 @@ def ZdirectionPath(fpath,points,normals,scan_height,rapid_height):
         # print(min_index)
         scan_z=points[min_index][2]+scan_height
         zpath.append([fpath[i][0],fpath[i][1],scan_z])
-        npath.append([normals[min_index][0],normals[min_index][1],normals[min_index][2]])
+        # 曲面用这个
+        if flag_curve==1:
+            npath.append([normals[min_index][0],normals[min_index][1],normals[min_index][2]])
+        else:
+            # 保存法向量
+            temp_npath_x.append(normals[min_index][0])
+            temp_npath_y.append(normals[min_index][1])
+            temp_npath_z.append(normals[min_index][2])
+            # 记得改回来
+            # npath.append([0,0,-1])
+    # 法向量平均
+    if flag_curve==0:
+        for i in range(n):
+            npath.append([np.mean(temp_npath_x),np.mean(temp_npath_y),np.mean(temp_npath_z)])
     # 结束点
     zpath.append([fpath[n-1][0],fpath[n-1][1],rapid_height])
     npath.append([0,0,-1])
@@ -107,44 +123,34 @@ class PointCloudSubscriber(object):
         for i in range(len(point)):
             point_temp.append(point[i].coord)
 
-        # bounding_ploy = np.array([
-        #                     [ -0.1, -0.01, 0 ],
-        #                     [ 0.01, -0.01, 0 ],
-        #                     [ 0.01, 0.15, 0 ],
-        #                     [ -0.1, 0.15, 0 ]                            
-        #                  ], dtype = np.float32).reshape([-1, 3]).astype("float64")
-        # bounding_polygon = np.array(bounding_ploy, dtype = np.float64) 
-        # vol = o3d.visualization.SelectionPolygonVolume() 
-        # #The Z-axis is used to define the height of the selected region
-        # vol.orthogonal_axis = "Z"
-        # vol.axis_max = 8
-        # vol.axis_min =0 
-        # vol.bounding_polygon = o3d.utility.Vector3dVector(bounding_polygon)
-        # pcd_in_camera = vol.crop_point_cloud(data)
-
         pcd_in_camera = o3d.geometry.PointCloud()# 传入3d点云
         pcd_in_camera.points = o3d.utility.Vector3dVector(point_temp)# point_points 二维 numpy 矩阵,将其转换为 open3d 点云格式
         # print(pcd_in_camera)
         xyz_load = np.asarray(pcd_in_camera.points)
-
-        tx=-0.00526445
-        ty=-0.337372
-        tz=0.519186
         
         # 变换到机器人坐标系 e
         pcd_in_link0 = o3d.geometry.PointCloud()# 传入3d点云
         pts_in_link0=[]
         # -3.05247            # 0.0152302            # -1.57026     
         # 四元数是[0.035778418980991884, .0.7058019852817551, 0.7070765842057435， -0.02462044628945545]
-        rotation=np.array([[-0.00112692, -0.99635035,  0.08535048],
+        r_cb=np.array([[-0.00112692, -0.99635035,  0.08535048],
                             [-0.99987388,  0.00247478,  0.01568788],
-                            [-0.01584184, -0.08532204, -0.99622748]])
+                            [-0.01584184, -0.08532204, -0.99622748]])        
+        r_dc=np.array([[0.999999175, -0.000203376972,  0.00126802484],
+                            [0.000187890538,  0.999925545,  0.0122012168],
+                            [-0.00127041187, -0.0122009685, 0.999924758]])        
+        t_cb=np.array([
+                    -0.00526445, 
+                    -0.337372, 
+                    0.519186])
+        t_dc=np.array([
+                    0.00061128, 
+                    -0.0146306, 
+                    0.0000789815])
+        t=np.dot(r_cb,t_dc)+t_cb
+        rotation=np.matmul(r_cb,r_dc)
         for i in range(len(xyz_load)):
-            pts_in_link0.append(np.dot(rotation.T,xyz_load[i,:])
-                                        +np.array([
-                                        tx, 
-                                        ty, 
-                                        tz]))
+            pts_in_link0.append(np.dot(rotation,xyz_load[i,:])+t)
         pcd_in_link0.points = o3d.utility.Vector3dVector(pts_in_link0)
 
 
@@ -171,19 +177,25 @@ class PointCloudSubscriber(object):
             xmax=np.max(points[:,0])
             ymin=np.min(points[:,1])
             ymax=np.max(points[:,1])
+
+            # 参数
+            Nx=rospy.get_param_cached("Nx",10)  # number of lines in the x-direction
+            step_num=rospy.get_param_cached("step_num",10) 
+            scan_height_int=rospy.get_param_cached("scan_height_int",1)
+            flag_curve=rospy.get_param_cached("flag_curve",0) # 曲面是1，平面是0
             # 确定x方向分Nx条线
-            Nx=10  # number of lines in the x-direction
             path = XdirectionZigPath(xmin,xmax,ymin,ymax,Nx)
             
             # 设置每条线走几步
-            step_num=10
             step=(ymax-ymin)/(step_num-1)
             fpath=feedPath(path,step,step_num)
 
-            scan_height=0.05
-            rapid_height=0.20#0.15
-            zpath,npath=ZdirectionPath(fpath,points,normals,scan_height,rapid_height)
+            tool_length = 0.087
+            scan_height=scan_height_int/100 + tool_length
+            rapid_height=0.20 + tool_length#0.15
+            zpath,npath=ZdirectionPath(fpath,points,normals,scan_height,rapid_height,flag_curve)
             # print(zpath)
+            print('x方向分',Nx,'条线,每条线走',step_num,'步,每步',step,'米,扫描高度距离工件',scan_height_int,'厘米,')
 
             # 将路径画在点云上,可视化
             #绘制顶点

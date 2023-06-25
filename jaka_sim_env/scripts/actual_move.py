@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/python3.8
 # encoding: utf-8
 from __future__ import print_function
 import open3d as o3d
@@ -178,13 +178,13 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## We can plan a motion for this group to a desired pose for the
         ## end-effector:
         pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.x = -2**0.5/2
-        pose_goal.orientation.y = -0.01
-        pose_goal.orientation.z = 2**0.5/2
-        pose_goal.orientation.w = 0
-        pose_goal.position.x = -0.4
-        pose_goal.position.y = 0.0
-        pose_goal.position.z = 0.4
+        pose_goal.orientation.x = -0.23986644734241247  #-2**0.5/2
+        pose_goal.orientation.y = -0.17554538580973483  #-0.01
+        pose_goal.orientation.z = 0.2800833569960983    #2**0.5/2
+        pose_goal.orientation.w = 0.04733517921144183   #0
+        pose_goal.position.x = -0.9700065690794372  #-0.4
+        pose_goal.position.y = -0.21430690613561565 #0.0
+        pose_goal.position.z = 0.10449491248065935  #0.4
 
         move_group.set_pose_target(pose_goal)
 
@@ -339,6 +339,7 @@ class MoveRobot(object):
             # cartesian_plan, fraction = tutorial.plan_cartesian_path()
             waypoints = []
             wpose = tutorial.move_group.get_current_pose().pose
+
             for i in range(len(path_msg.poses)):
                 # print(path_msg.poses[i].pose.position.x)
                 wpose.position.x = path_msg.poses[i].pose.position.x
@@ -350,6 +351,17 @@ class MoveRobot(object):
                 wpose.orientation.z = path_msg.poses[i].pose.orientation.z
                 wpose.orientation.w = path_msg.poses[i].pose.orientation.w
                 waypoints.append(copy.deepcopy(wpose))
+
+            # goback to origin position
+            wpose.position.x = path_msg.poses[0].pose.position.x-0.15
+            wpose.position.y = path_msg.poses[0].pose.position.y+0.08
+            wpose.position.z = path_msg.poses[0].pose.position.z
+            wpose.orientation.x = path_msg.poses[0].pose.orientation.x
+            wpose.orientation.y = path_msg.poses[0].pose.orientation.y
+            wpose.orientation.z = path_msg.poses[0].pose.orientation.z
+            wpose.orientation.w = path_msg.poses[0].pose.orientation.w
+            waypoints.append(copy.deepcopy(wpose))
+
             (plan, fraction) = tutorial.move_group.compute_cartesian_path(
                 waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
             )  # jump_threshold
@@ -357,6 +369,7 @@ class MoveRobot(object):
             tutorial.execute_plan(plan)
             waypoints = []
             wpose = tutorial.move_group.get_current_pose().pose
+            
             # '''
 
             '''
