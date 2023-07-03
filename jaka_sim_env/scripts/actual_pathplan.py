@@ -35,6 +35,29 @@ def XdirectionZigPath(xmin,xmax,ymin,ymax,Nx):
         flag=~flag
     return path
 
+# x从小到大，y从大到小
+# def XdirectionZigPath(xmin,xmax,ymin,ymax,Nx):
+#     ymax=ymax+0.005
+#     ymin=ymin+0.002
+#     paths = []
+#     dx = float(xmax-xmin)/(Nx-1)  # the y step-over
+#     flag=1      #奇偶分别
+#     path=[]
+#     for n in range(0,Nx):
+#         x = xmin+n*dx              # current y-coordinate 
+#         if flag==-2:
+#             p1 = [x,ymin,0]   # start-point of line
+#             p2 = [x,ymax,0]   # end-point of line
+#             # print(flag)
+#         if flag==1:
+#             p1 = [x,ymax,0]   # start-point of line
+#             p2 = [x,ymin,0]   # end-point of line
+#             # print(flag)
+#         path.append(p1)       # add the line to the path
+#         path.append(p2)
+#         flag=~flag
+#     return path
+
 # 得到步进x/y方向的路径
 def feedPath(path,step,step_num):
     flag=1      #奇偶分别
@@ -49,6 +72,20 @@ def feedPath(path,step,step_num):
             fpath.append(p)
         flag=~flag
     return fpath
+
+# def feedPath(path,step,step_num):
+#     flag=1      #奇偶分别
+#     fpath=[]
+#     n=len(path)
+#     for i in range(n//2):
+#         for j in range(step_num):
+#             if flag==-2:
+#                 p=[path[2*i][0],path[2*i][1]+j*step,path[2*i][2]]
+#             if flag==1:
+#                 p=[path[2*i][0],path[2*i][1]-j*step,path[2*i][2]]
+#             fpath.append(p)
+#         flag=~flag
+#     return fpath
 
 # 依据点云坐标得到z方向的坐标
 def ZdirectionPath(fpath,points,normals,scan_height,rapid_height,flag_curve):
@@ -133,20 +170,39 @@ class PointCloudSubscriber(object):
         pts_in_link0=[]
         # -3.05247            # 0.0152302            # -1.57026     
         # 四元数是[0.035778418980991884, .0.7058019852817551, 0.7070765842057435， -0.02462044628945545]
-        r_cb=np.array([[-0.00112692, -0.99635035,  0.08535048],
-                            [-0.99987388,  0.00247478,  0.01568788],
-                            [-0.01584184, -0.08532204, -0.99622748]])        
-        r_dc=np.array([[0.999999175, -0.000203376972,  0.00126802484],
-                            [0.000187890538,  0.999925545,  0.0122012168],
-                            [-0.00127041187, -0.0122009685, 0.999924758]])        
+        # r_cb=np.array([[-0.00112692, -0.99635035,  0.08535048],
+        #                     [-0.99987388,  0.00247478,  0.01568788],
+        #                     [-0.01584184, -0.08532204, -0.99622748]])        # 之前标定的数据
+        # r_cb=np.array([[-0.0076228,  -0.99500882,  0.09949547],
+        #                 [-0.99986569,  0.0090278,   0.01367874],
+        #                 [-0.01450869, -0.09937783, -0.99494399]])           # 6月30日标定的第一次数据
+        r_cb=np.array([[-0.01856987, -0.99540875,  0.09389662],
+                        [-0.9996803,   0.02009686,  0.01534297],
+                        [-0.01715956, -0.09358168, -0.99546372]])           # 6月30日标定的第2次数据
+        # r_dc=np.array([[0.999999175, -0.000203376972,  0.00126802484],
+        #                     [0.000187890538,  0.999925545,  0.0122012168],
+        #                     [-0.00127041187, -0.0122009685, 0.999924758]])        # 之前标定的数据
+        r_dc=np.array([[ 0.999925545,  0.0122012168, -0.000187890538],
+                        [-0.0122009685,  0.999924758,  0.00127041187],
+                        [ 0.000203376972, -0.00126802484,  0.999999175]])           # 6月30日标定的数据       ,没问题 
+        # t_cb=np.array([
+        #             -0.00526445, 
+        #             -0.337372, 
+        #             0.519186])        # 之前标定的数据
         t_cb=np.array([
-                    -0.00526445, 
-                    -0.337372, 
-                    0.519186])
-        t_dc=np.array([
-                    0.00061128, 
-                    -0.0146306, 
-                    0.0000789815])
+                    -0.00831419,
+                    -0.333338,     
+                    0.521126])           # 6月30日标定的第一次数据
+        # t_cb=np.array([-0.00835337,   
+        #                -0.334139,     
+        #                0.521118])           # 6月30日标定的第2次数据
+        # t_dc=np.array([
+        #             0.00061128, 
+        #             -0.0146306, 
+        #             0.0000789815])        # 之前标定的数据
+        t_dc=np.array([0.0146306,
+                       -0.0000789815,
+                       0.000611228])           # 6月30日标定的数据,没问题
         t=np.dot(r_cb,t_dc)+t_cb
         rotation=np.matmul(r_cb,r_dc)
         for i in range(len(xyz_load)):
@@ -182,6 +238,7 @@ class PointCloudSubscriber(object):
             Nx=rospy.get_param_cached("Nx",10)  # number of lines in the x-direction
             step_num=rospy.get_param_cached("step_num",10) 
             scan_height_int=rospy.get_param_cached("scan_height_int",1)
+            rapid_height_int=rospy.get_param_cached("rapid_height_int",20)
             flag_curve=rospy.get_param_cached("flag_curve",0) # 曲面是1，平面是0
             # 确定x方向分Nx条线
             path = XdirectionZigPath(xmin,xmax,ymin,ymax,Nx)
@@ -192,7 +249,7 @@ class PointCloudSubscriber(object):
 
             tool_length = 0.087
             scan_height=scan_height_int/100 + tool_length
-            rapid_height=0.20 + tool_length#0.15
+            rapid_height=rapid_height_int/100 + tool_length#0.15
             zpath,npath=ZdirectionPath(fpath,points,normals,scan_height,rapid_height,flag_curve)
             # print(zpath)
             print('x方向分',Nx,'条线,每条线走',step_num,'步,每步',step,'米,扫描高度距离工件',scan_height_int,'厘米,')

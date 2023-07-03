@@ -8,7 +8,8 @@ def domsg(msg):
     rospy.set_param("Nx",msg.data[0])
     rospy.set_param("step_num",msg.data[1])
     rospy.set_param("scan_height_int",msg.data[2])
-    rospy.set_param("flag_curve",msg.data[3])
+    rospy.set_param("rapid_height_int",msg.data[3])
+    rospy.set_param("flag_curve",msg.data[4])
     print('set success!')
 
 if __name__=="__main__":
