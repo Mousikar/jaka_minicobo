@@ -414,7 +414,6 @@ class TeachRobot(object):
             # 设置速度缩放因子
             velocity_scaling_factor = 1  # 设置速度为原来的50%
             tutorial.move_group.set_max_velocity_scaling_factor(velocity_scaling_factor)
-            waypoints = []
             wpose = tutorial.move_group.get_current_pose().pose
             cpose = tutorial.move_group.get_current_pose().pose
 
@@ -427,7 +426,10 @@ class TeachRobot(object):
                 wpose.orientation.y = 0
                 wpose.orientation.z = 0
                 wpose.orientation.w = 0
-                waypoints.append(copy.deepcopy(wpose))
+                tutorial.move_group.set_pose_target(wpose)
+                success = tutorial.move_group.go(wait=True)
+                tutorial.move_group.stop()
+                tutorial.move_group.clear_pose_targets()
 
             # goback to origin position
             wpose.position.x = cpose.position.x
@@ -437,19 +439,59 @@ class TeachRobot(object):
             wpose.orientation.y = cpose.orientation.y
             wpose.orientation.z = cpose.orientation.z
             wpose.orientation.w = cpose.orientation.w
-            waypoints.append(copy.deepcopy(wpose))
+            tutorial.move_group.set_pose_target(wpose)
+            success = tutorial.move_group.go(wait=True)
+            tutorial.move_group.stop()
+            tutorial.move_group.clear_pose_targets()
 
-            (plan, fraction) = tutorial.move_group.compute_cartesian_path(
-                waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
-            )  # jump_threshold
-            tutorial.display_trajectory(plan)
-            tutorial.execute_plan(plan)
-            waypoints = []
-            wpose = tutorial.move_group.get_current_pose().pose
         except rospy.ROSInterruptException:
             return
         except KeyboardInterrupt:
             return
+
+        # # move
+        # try:
+        #     # '''
+        #     # cartesian_plan, fraction = tutorial.plan_cartesian_path()
+        #     # 设置速度缩放因子
+        #     velocity_scaling_factor = 1  # 设置速度为原来的50%
+        #     tutorial.move_group.set_max_velocity_scaling_factor(velocity_scaling_factor)
+        #     waypoints = []
+        #     wpose = tutorial.move_group.get_current_pose().pose
+        #     cpose = tutorial.move_group.get_current_pose().pose
+
+        #     for i in range(len(fpath)):
+        #         wpose.position.x = fpath[i][0]
+        #         wpose.position.y = fpath[i][1]
+        #         wpose.position.z = fpath[i][2]
+
+        #         wpose.orientation.x = -1
+        #         wpose.orientation.y = 0
+        #         wpose.orientation.z = 0
+        #         wpose.orientation.w = 0
+        #         waypoints.append(copy.deepcopy(wpose))
+
+        #     # goback to origin position
+        #     wpose.position.x = cpose.position.x
+        #     wpose.position.y = cpose.position.y
+        #     wpose.position.z = cpose.position.z + high + 0.02
+        #     wpose.orientation.x = cpose.orientation.x
+        #     wpose.orientation.y = cpose.orientation.y
+        #     wpose.orientation.z = cpose.orientation.z
+        #     wpose.orientation.w = cpose.orientation.w
+        #     waypoints.append(copy.deepcopy(wpose))
+
+        #     (plan, fraction) = tutorial.move_group.compute_cartesian_path(
+        #         waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
+        #     )  # jump_threshold
+        #     tutorial.display_trajectory(plan)
+        #     tutorial.execute_plan(plan)
+        #     waypoints = []
+        #     wpose = tutorial.move_group.get_current_pose().pose
+        # except rospy.ROSInterruptException:
+        #     return
+        # except KeyboardInterrupt:
+        #     return
         
 # 主函数
 if __name__ == "__main__": 
